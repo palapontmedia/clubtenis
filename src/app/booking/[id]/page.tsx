@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
@@ -5,6 +6,7 @@ import { requireUserOrRedirect } from "@/lib/auth-guards";
 import { createPaymentIntentForReservation } from "@/lib/payments";
 import { formatDuration, formatMoney } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { CheckoutForm } from "@/components/booking/checkout-form";
 import { HoldCountdown } from "@/components/booking/hold-countdown";
 
@@ -52,7 +54,17 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
   }
 
   const durationMinutes = Math.round((reservation.endsAt.getTime() - reservation.startsAt.getTime()) / 60_000);
-  const { clientSecret } = await createPaymentIntentForReservation(id, user.id);
+
+  let clientSecret: string | null = null;
+  try {
+    const result = await createPaymentIntentForReservation(id, user.id);
+    clientSecret = result.clientSecret;
+  } catch (error) {
+    // Stripe being unreachable/misconfigured must never crash the booking
+    // page — the hold is already in place, so show a retryable error
+    // instead of an unhandled exception.
+    console.error("Failed to create PaymentIntent:", error);
+  }
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
@@ -89,7 +101,14 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
         {clientSecret ? (
           <CheckoutForm clientSecret={clientSecret} reservationId={id} />
         ) : (
-          <p className="text-sm text-destructive">No se ha podido iniciar el pago. Inténtalo de nuevo.</p>
+          <Card className="border-destructive/30 bg-destructive/5 p-4 text-center">
+            <p className="text-sm text-destructive">
+              No se ha podido iniciar el pago. Tu pista sigue reservada temporalmente.
+            </p>
+            <Button asChild variant="outline" size="sm" className="mt-3">
+              <Link href={`/booking/${id}`}>Reintentar</Link>
+            </Button>
+          </Card>
         )}
       </div>
     </div>
