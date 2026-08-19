@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { computePrice } from "@/lib/pricing";
 import { isCourtWindowFree } from "@/lib/availability";
 import { computeRefundPercentage, getDefaultCancellationPolicy } from "@/lib/cancellation";
-import { AppError } from "@/lib/api-error";
+import { AppError } from "@/lib/errors";
 import { RESERVATION_HOLD_MINUTES } from "@/lib/config";
 import { logAudit } from "@/lib/audit";
 

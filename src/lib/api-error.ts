@@ -2,18 +2,9 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { ZodError } from "zod";
 
-import { ForbiddenError, UnauthorizedError } from "@/lib/auth-guards";
+import { AppError, ForbiddenError, UnauthorizedError } from "@/lib/errors";
 
-export class AppError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public code: string
-  ) {
-    super(message);
-    this.name = "AppError";
-  }
-}
+export { AppError } from "@/lib/errors";
 
 /**
  * Maps any thrown error to a safe, user-facing JSON response. Unexpected
@@ -38,7 +29,7 @@ export function toErrorResponse(error: unknown): NextResponse {
   }
 
   const correlationId = randomUUID();
-   
+
   console.error(`[${correlationId}] Unhandled error:`, error);
   return NextResponse.json(
     { error: "Algo ha ido mal. Inténtalo de nuevo.", code: "INTERNAL_ERROR", correlationId },
