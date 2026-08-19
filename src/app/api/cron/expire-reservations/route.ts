@@ -12,11 +12,12 @@ import { expireStalePendingReservations } from "@/lib/availability";
  */
 export async function POST(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const provided = request.headers.get("authorization")?.replace("Bearer ", "");
-    if (provided !== secret) {
-      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-    }
+  if (!secret) {
+    return NextResponse.json({ error: "CRON_SECRET no está configurada." }, { status: 500 });
+  }
+  const provided = request.headers.get("authorization")?.replace("Bearer ", "");
+  if (provided !== secret) {
+    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
 
   await expireStalePendingReservations();

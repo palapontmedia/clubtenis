@@ -64,10 +64,12 @@ export async function createPendingReservation(input: CreatePendingReservationIn
 
   let discountCents = 0;
   let promoCodeId: string | null = null;
+  let promoMaxRedemptions: number | null = null;
   if (promoCode) {
     const applied = await validateAndPricePromoCode(promoCode, clubId, court.sportId, price.priceCents);
     discountCents = applied.discountCents;
     promoCodeId = applied.promoCodeId;
+    promoMaxRedemptions = applied.maxRedemptions;
   }
 
   const totalCents = Math.max(0, price.priceCents - discountCents);
@@ -96,10 +98,26 @@ export async function createPendingReservation(input: CreatePendingReservationIn
       });
 
       if (promoCodeId) {
-        await tx.promoCode.update({
-          where: { id: promoCodeId },
-          data: { redemptionCount: { increment: 1 } },
-        });
+        // Enforce maxRedemptions atomically here — this is the only check
+        // that actually counts under concurrency. The earlier read in
+        // validateAndPricePromoCode is just an optimistic pre-check for a
+        // fast error message; without this conditional update, two
+        // concurrent requests on the last remaining redemption could both
+        // pass that pre-check and over-redeem the code.
+        if (promoMaxRedemptions !== null) {
+          const result = await tx.promoCode.updateMany({
+            where: { id: promoCodeId, redemptionCount: { lt: promoMaxRedemptions } },
+            data: { redemptionCount: { increment: 1 } },
+          });
+          if (result.count === 0) {
+            throw new AppError("Código promocional no válido.", 422, "INVALID_PROMO_CODE");
+          }
+        } else {
+          await tx.promoCode.update({
+            where: { id: promoCodeId },
+            data: { redemptionCount: { increment: 1 } },
+          });
+        }
       }
 
       return created;
@@ -132,7 +150,7 @@ async function validateAndPricePromoCode(
   clubId: string,
   sportId: string,
   priceCents: number
-): Promise<{ discountCents: number; promoCodeId: string }> {
+): Promise<{ discountCents: number; promoCodeId: string; maxRedemptions: number | null }> {
   const promo = await prisma.promoCode.findUnique({
     where: { code: code.trim().toUpperCase() },
     include: { promotion: true },
@@ -159,7 +177,7 @@ async function validateAndPricePromoCode(
       ? Math.round((priceCents * promo.promotion.discountValue) / 100)
       : Math.min(promo.promotion.discountValue, priceCents);
 
-  return { discountCents, promoCodeId: promo.id };
+  return { discountCents, promoCodeId: promo.id, maxRedemptions: promo.maxRedemptions };
 }
 
 export class ReservationNoLongerAvailableError extends Error {
@@ -223,7 +241,7 @@ export async function cancelReservation(input: CancelReservationInput): Promise<
     throw new AppError("No puedes cancelar la reserva de otro jugador.", 403, "FORBIDDEN");
   }
   const cancellableStatuses: ReservationStatus[] = [ReservationStatus.PENDING_PAYMENT, ReservationStatus.CONFIRMED];
-  if (!cancellableStatuses.includes(reservation.status)) {
+  if (!cancellableStatuses.includes(reservation.status) || reservation.startsAt.getTime() <= Date.now()) {
     throw new AppError("Esta reserva ya no se puede cancelar.", 422, "NOT_CANCELLABLE");
   }
 

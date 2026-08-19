@@ -52,10 +52,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id as string;
         token.role = user.role;
+        token.roleCheckedAt = Date.now();
+        return token;
+      }
+
+      // Re-read the role from the DB periodically so a role change (e.g. an
+      // admin demoted after being compromised/offboarded) takes effect
+      // without waiting for the JWT to expire, instead of trusting the
+      // role baked into the token at login forever.
+      const checkedAt = typeof token.roleCheckedAt === "number" ? token.roleCheckedAt : 0;
+      const stale = Date.now() - checkedAt > 5 * 60_000;
+      if (trigger === "update" || stale) {
+        const current = await prisma.user.findUnique({ where: { id: token.id as string }, select: { role: true } });
+        if (current) token.role = current.role;
+        token.roleCheckedAt = Date.now();
       }
       return token;
     },

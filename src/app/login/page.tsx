@@ -31,7 +31,14 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const requestedCallbackUrl = searchParams.get("callbackUrl");
+  // Only ever redirect to an internal path — a callbackUrl pointing at an
+  // external origin (e.g. "https://evil.example" or "//evil.example") must
+  // never be honored, or login becomes an open-redirect gadget.
+  const callbackUrl =
+    requestedCallbackUrl && requestedCallbackUrl.startsWith("/") && !requestedCallbackUrl.startsWith("//")
+      ? requestedCallbackUrl
+      : "/dashboard";
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
