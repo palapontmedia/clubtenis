@@ -1,6 +1,8 @@
 import { SearchForm } from "@/components/booking/search-form";
 import { getDefaultClub, getSports } from "@/lib/club";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const [club, sports] = await Promise.all([getDefaultClub(), getSports()]);
 
