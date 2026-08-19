@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Rally — Reserva tu pista en segundos",
-  description: "Reserva pistas de pádel y tenis en Valencia Padel & Tennis Club.",
+  description: "Reserva pistas de pádel y tenis en el Club de Tenis de Oliva.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

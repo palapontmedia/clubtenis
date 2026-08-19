@@ -2,7 +2,7 @@
 
 Plataforma de reservas para un club de tenis y pádel: disponibilidad en tiempo real, motor de precios configurable, pagos con Stripe y un panel de administración operativo completo.
 
-Producto único (`Valencia Padel & Tennis Club`, ver `prisma/seed.ts`) inspirado funcionalmente en plataformas de reserva de pistas del mercado, con identidad visual e implementación propias.
+Producto único (`Club de Tenis de Oliva`, ver `prisma/seed.ts`) inspirado funcionalmente en plataformas de reserva de pistas del mercado, con identidad visual e implementación propias.
 
 ## Índice
 
@@ -61,8 +61,8 @@ Usuarios de prueba tras el seed (contraseña `Password123` para todos):
 
 | Rol          | Email                        |
 | ------------ | ----------------------------- |
-| SUPER_ADMIN  | admin@vptc.example             |
-| STAFF        | staff@vptc.example             |
+| SUPER_ADMIN  | admin@clubtenisoliva.example    |
+| STAFF        | staff@clubtenisoliva.example    |
 | PLAYER       | ana.garcia@example.com         |
 
 ## Variables de entorno

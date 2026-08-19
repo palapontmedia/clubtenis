@@ -33,12 +33,12 @@ async function main() {
 
   const club = await prisma.club.create({
     data: {
-      name: "Valencia Padel & Tennis Club",
-      slug: "valencia-padel-tennis-club",
-      description: "Club deportivo con 6 pistas de pádel y tenis en el corazón de Valencia.",
-      address: "Av. del Deporte 24, 46013 Valencia",
-      phone: "+34 963 000 000",
-      email: "info@vptc.example",
+      name: "Club de Tenis de Oliva",
+      slug: "club-de-tenis-de-oliva",
+      description: "Club deportivo con 20 pistas de pádel y tenis frente al mar, en Oliva (Valencia).",
+      address: "Passeig Oliva al Mar, s/n, 46780 Oliva, Valencia",
+      phone: "+34 962 851 185",
+      email: "administracion@clubtenisoliva.es",
       timezone: "Europe/Madrid",
       currency: "EUR",
     },
@@ -55,26 +55,27 @@ async function main() {
     prisma.courtType.create({ data: { name: "Pista rápida", description: "Superficie dura de tenis." } }),
   ]);
 
-  const courts = await Promise.all([
-    prisma.court.create({
-      data: { clubId: club.id, sportId: padel.id, courtTypeId: panoramica.id, name: "Pádel 1", indoor: true, covered: true, basePriceCents: 2800, sortOrder: 1 },
-    }),
-    prisma.court.create({
-      data: { clubId: club.id, sportId: padel.id, courtTypeId: panoramica.id, name: "Pádel 2", indoor: true, covered: true, basePriceCents: 2800, sortOrder: 2 },
-    }),
-    prisma.court.create({
-      data: { clubId: club.id, sportId: padel.id, courtTypeId: muro.id, name: "Pádel 3", indoor: false, covered: false, basePriceCents: 2200, sortOrder: 3 },
-    }),
-    prisma.court.create({
-      data: { clubId: club.id, sportId: padel.id, courtTypeId: muro.id, name: "Pádel 4", indoor: false, covered: false, basePriceCents: 2200, sortOrder: 4 },
-    }),
-    prisma.court.create({
-      data: { clubId: club.id, sportId: tenis.id, courtTypeId: rapida.id, name: "Tenis 1", indoor: false, covered: false, basePriceCents: 2400, sortOrder: 5 },
-    }),
-    prisma.court.create({
-      data: { clubId: club.id, sportId: tenis.id, courtTypeId: rapida.id, name: "Tenis 2", indoor: false, covered: false, basePriceCents: 2400, sortOrder: 6 },
-    }),
+  // 20 pistas de ejemplo: 6 pádel panorámica + 6 pádel muro + 8 tenis pista rápida.
+  const padelCourts = await Promise.all([
+    ...Array.from({ length: 6 }, (_, i) =>
+      prisma.court.create({
+        data: { clubId: club.id, sportId: padel.id, courtTypeId: panoramica.id, name: `Pádel ${i + 1}`, indoor: true, covered: true, basePriceCents: 2800, sortOrder: i + 1 },
+      })
+    ),
+    ...Array.from({ length: 6 }, (_, i) =>
+      prisma.court.create({
+        data: { clubId: club.id, sportId: padel.id, courtTypeId: muro.id, name: `Pádel ${i + 7}`, indoor: false, covered: false, basePriceCents: 2200, sortOrder: i + 7 },
+      })
+    ),
   ]);
+  const tenisCourts = await Promise.all(
+    Array.from({ length: 8 }, (_, i) =>
+      prisma.court.create({
+        data: { clubId: club.id, sportId: tenis.id, courtTypeId: rapida.id, name: `Tenis ${i + 1}`, indoor: false, covered: false, basePriceCents: 2400, sortOrder: i + 13 },
+      })
+    )
+  );
+  const courts = [...padelCourts, ...tenisCourts];
 
   // Opening hours: Mon-Fri 08:00-23:00, Sat 09:00-22:00, Sun 09:00-21:00
   await prisma.clubOpeningHours.createMany({
@@ -117,10 +118,10 @@ async function main() {
   const passwordHash = await bcrypt.hash("Password123", 12);
 
   await prisma.user.create({
-    data: { email: "admin@vptc.example", name: "Marta Ibáñez", role: "SUPER_ADMIN", passwordHash, emailVerifiedAt: new Date() },
+    data: { email: "admin@clubtenisoliva.example", name: "Marta Ibáñez", role: "SUPER_ADMIN", passwordHash, emailVerifiedAt: new Date() },
   });
   const staff = await prisma.user.create({
-    data: { email: "staff@vptc.example", name: "Jordi Ferrer", role: "STAFF", passwordHash, emailVerifiedAt: new Date() },
+    data: { email: "staff@clubtenisoliva.example", name: "Jordi Ferrer", role: "STAFF", passwordHash, emailVerifiedAt: new Date() },
   });
 
   const players = await Promise.all(
@@ -162,7 +163,7 @@ async function main() {
 
   await prisma.courtClosure.create({
     data: {
-      courtId: courts[3].id,
+      courtId: padelCourts[3].id,
       kind: CourtClosureKind.MAINTENANCE,
       reason: "Cambio de césped artificial",
       startsAt: new Date(Date.now() + 2 * 24 * 3_600_000),
@@ -176,7 +177,7 @@ async function main() {
   const confirmed = await prisma.reservation.create({
     data: {
       clubId: club.id,
-      courtId: courts[0].id,
+      courtId: padelCourts[0].id,
       sportId: padel.id,
       createdById: players[0].id,
       startsAt: inTwoDays9am,
@@ -203,7 +204,7 @@ async function main() {
   await prisma.reservation.create({
     data: {
       clubId: club.id,
-      courtId: courts[4].id,
+      courtId: tenisCourts[0].id,
       sportId: tenis.id,
       createdById: players[2].id,
       startsAt: inThreeDays19h,
@@ -221,7 +222,7 @@ async function main() {
   const completed = await prisma.reservation.create({
     data: {
       clubId: club.id,
-      courtId: courts[1].id,
+      courtId: padelCourts[1].id,
       sportId: padel.id,
       createdById: players[3].id,
       startsAt: lastWeek,
@@ -248,7 +249,7 @@ async function main() {
   await prisma.reservation.create({
     data: {
       clubId: club.id,
-      courtId: courts[2].id,
+      courtId: padelCourts[2].id,
       sportId: padel.id,
       createdById: players[1].id,
       startsAt: lastMonth,
@@ -267,8 +268,8 @@ async function main() {
 
   console.log("Seed complete:");
   console.log(`  Club: ${club.name} (${club.slug})`);
-  console.log(`  Admin login: admin@vptc.example / Password123`);
-  console.log(`  Staff login: staff@vptc.example / Password123`);
+  console.log(`  Admin login: admin@clubtenisoliva.example / Password123`);
+  console.log(`  Staff login: staff@clubtenisoliva.example / Password123`);
   console.log(`  Player login: ana.garcia@example.com / Password123`);
 }
 
