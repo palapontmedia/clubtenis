@@ -1,0 +1,92 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  --background: #faf9f6;
+  --foreground: #16211d;
+  --surface: #ffffff;
+  --surface-muted: #f2f1ec;
+  --border: #e4e2da;
+  --border-strong: #cfccc0;
+
+  --primary: #163a2e;
+  --primary-foreground: #f7fbf5;
+  --accent: #c6ff3d;
+  --accent-foreground: #16211d;
+
+  --muted: #6f7266;
+  --muted-foreground: #8b8d81;
+
+  --success: #1c7c4d;
+  --warning: #b45309;
+  --destructive: #b3261e;
+  --destructive-foreground: #fff5f4;
+
+  --ring: #163a2e;
+  --radius: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0e1512;
+    --foreground: #eef1ec;
+    --surface: #141d19;
+    --surface-muted: #1a2420;
+    --border: #263029;
+    --border-strong: #344036;
+
+    --primary: #c6ff3d;
+    --primary-foreground: #101a14;
+    --accent: #c6ff3d;
+    --accent-foreground: #101a14;
+
+    --muted: #a8ac9e;
+    --muted-foreground: #7d8175;
+
+    --success: #4ade80;
+    --warning: #f59e0b;
+    --destructive: #f87171;
+    --destructive-foreground: #2a0a08;
+
+    --ring: #c6ff3d;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-ring: var(--ring);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-sm: calc(var(--radius) - 0.4rem);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+* {
+  border-color: var(--border);
+}

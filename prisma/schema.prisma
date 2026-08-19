@@ -1,0 +1,503 @@
+// Club Tenis & Pádel — data model
+//
+// Design notes:
+// - Money is always stored as integer cents (`*Cents` fields) to avoid
+//   floating point rounding errors. Currency is ISO 4217, stored per club.
+// - `AvailabilitySlot` is intentionally NOT a persisted table: availability
+//   is a derived view computed on demand from opening hours, closures and
+//   existing reservations (see src/lib/availability.ts). Persisting slots
+//   would create a second source of truth that could drift from reality.
+// - Double-booking is prevented at two layers: an application-level
+//   transaction that re-checks overlap, AND a database-level exclusion
+//   constraint (added in a raw-SQL migration using btree_gist) that makes
+//   it physically impossible for two active reservations to overlap on the
+//   same court, even under concurrent requests. See migrations/*_court_exclusion.
+// - `CourtClosure` unifies "maintenance block" and "closure" (holiday/event)
+//   from the spec into a single entity distinguished by `kind`, since both
+//   represent "this court is unavailable during this interval" and modeling
+//   them separately would duplicate the same shape and the same
+//   availability-checking logic.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+enum Role {
+  PLAYER
+  STAFF
+  ADMIN
+  SUPER_ADMIN
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String?
+  name              String
+  phone             String?
+  avatarUrl         String?
+  role              Role      @default(PLAYER)
+  emailVerifiedAt   DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  playerProfile         PlayerProfile?
+  reservationsCreated   Reservation[]          @relation("ReservationCreator")
+  reservationParticipant ReservationParticipant[]
+  payments              Payment[]
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+  passwordResetTokens    PasswordResetToken[]
+  courtClosuresCreated   CourtClosure[]
+
+  @@index([role])
+}
+
+model PlayerProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio         String?
+  preferredSportId String?
+  preferredSport   Sport? @relation(fields: [preferredSportId], references: [id])
+  skillLevel  String?
+  marketingOptIn Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Club, sports & courts
+// ---------------------------------------------------------------------------
+
+model Club {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  address     String?
+  phone       String?
+  email       String?
+  timezone    String   @default("Europe/Madrid")
+  currency    String   @default("EUR")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courts             Court[]
+  openingHours       ClubOpeningHours[]
+  holidays           ClubHoliday[]
+  pricingRules       PricingRule[]
+  cancellationPolicies CancellationPolicy[]
+  promotions         Promotion[]
+  reservations       Reservation[]
+}
+
+model Sport {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  icon      String?
+  createdAt DateTime @default(now())
+
+  courts         Court[]
+  pricingRules   PricingRule[]
+  reservations   Reservation[]
+  promotions     Promotion[]
+  playerProfiles PlayerProfile[]
+}
+
+model CourtType {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  courts       Court[]
+  pricingRules PricingRule[]
+}
+
+model Court {
+  id            String   @id @default(cuid())
+  clubId        String
+  club          Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  sportId       String
+  sport         Sport    @relation(fields: [sportId], references: [id])
+  courtTypeId   String?
+  courtType     CourtType? @relation(fields: [courtTypeId], references: [id])
+  name          String
+  indoor        Boolean  @default(false)
+  covered       Boolean  @default(false)
+  active        Boolean  @default(true)
+  basePriceCents Int     @default(0)
+  description   String?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reservations Reservation[]
+  closures     CourtClosure[]
+
+  @@index([clubId, sportId, active])
+}
+
+// A specific calendar date (e.g. national holiday) used by the pricing
+// engine to apply DayCategory.HOLIDAY rules instead of the regular
+// weekday/weekend rate. Distinct from CourtClosure: a holiday does not by
+// itself close the club, it just changes the price (a club may also add a
+// CourtClosure on the same date if it closes entirely).
+model ClubHoliday {
+  id     String   @id @default(cuid())
+  clubId String
+  club   Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date
+  name   String
+
+  @@unique([clubId, date])
+}
+
+model ClubOpeningHours {
+  id        String @id @default(cuid())
+  clubId    String
+  club      Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  dayOfWeek Int    // 0 = Sunday .. 6 = Saturday
+  opensAt   String // "HH:mm"
+  closesAt  String // "HH:mm"
+  closed    Boolean @default(false)
+
+  @@unique([clubId, dayOfWeek])
+}
+
+enum CourtClosureKind {
+  MAINTENANCE
+  HOLIDAY
+  EVENT
+  OTHER
+}
+
+model CourtClosure {
+  id        String           @id @default(cuid())
+  courtId   String
+  court     Court            @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  kind      CourtClosureKind
+  reason    String?
+  startsAt  DateTime
+  endsAt    DateTime
+  createdById String?
+  createdBy   User?          @relation(fields: [createdById], references: [id])
+  createdAt DateTime         @default(now())
+
+  @@index([courtId, startsAt, endsAt])
+}
+
+// ---------------------------------------------------------------------------
+// Pricing
+// ---------------------------------------------------------------------------
+
+enum DayCategory {
+  WEEKDAY
+  WEEKEND
+  HOLIDAY
+}
+
+// A rule matches a sport (+ optional court type) + day category + time
+// window, and defines a price per hour. The engine (src/lib/pricing.ts)
+// picks the most specific matching rule (highest `priority`) and
+// prorates it by the reservation duration. This supports peak/off-peak,
+// weekday/weekend and per-court-type pricing without hardcoding prices
+// per duration.
+model PricingRule {
+  id             String      @id @default(cuid())
+  clubId         String
+  club           Club        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  sportId        String
+  sport          Sport       @relation(fields: [sportId], references: [id])
+  courtTypeId    String?
+  courtType      CourtType?  @relation(fields: [courtTypeId], references: [id])
+  name           String
+  dayCategory    DayCategory
+  startTime      String      // "HH:mm", inclusive
+  endTime        String      // "HH:mm", exclusive
+  pricePerHourCents Int
+  priority       Int         @default(0)
+  active         Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([clubId, sportId, dayCategory, active])
+}
+
+// ---------------------------------------------------------------------------
+// Reservations
+// ---------------------------------------------------------------------------
+
+enum ReservationStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  EXPIRED
+  NO_SHOW
+}
+
+model Reservation {
+  id              String            @id @default(cuid())
+  clubId          String
+  club            Club              @relation(fields: [clubId], references: [id])
+  courtId         String
+  court           Court             @relation(fields: [courtId], references: [id])
+  sportId         String
+  sport           Sport             @relation(fields: [sportId], references: [id])
+  createdById     String
+  createdBy       User              @relation("ReservationCreator", fields: [createdById], references: [id])
+
+  startsAt        DateTime
+  endsAt          DateTime
+  status          ReservationStatus @default(PENDING_PAYMENT)
+
+  priceCents      Int
+  discountCents   Int               @default(0)
+  totalCents      Int
+  currency        String            @default("EUR")
+
+  promoCodeId     String?
+  promoCode       PromoCode?        @relation(fields: [promoCodeId], references: [id])
+
+  // Only meaningful while status = PENDING_PAYMENT. A background sweep
+  // (and lazy checks on read) flip expired rows to EXPIRED so they stop
+  // blocking the court.
+  expiresAt       DateTime?
+
+  notes           String?
+  cancelledAt     DateTime?
+  cancelledById   String?
+  cancellationReason String?
+  refundPercentage  Int?
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  participants    ReservationParticipant[]
+  payments        Payment[]
+  notifications   Notification[]
+
+  @@index([courtId, startsAt, endsAt])
+  @@index([createdById])
+  @@index([status, expiresAt])
+}
+
+model ReservationParticipant {
+  id            String      @id @default(cuid())
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id])
+  guestName     String?
+  guestEmail    String?
+  createdAt     DateTime    @default(now())
+
+  @@unique([reservationId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Payments
+// ---------------------------------------------------------------------------
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  reservationId         String
+  reservation           Reservation   @relation(fields: [reservationId], references: [id])
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id])
+  stripePaymentIntentId String?       @unique
+  idempotencyKey        String        @unique
+  amountCents           Int
+  currency              String        @default("EUR")
+  status                PaymentStatus @default(PENDING)
+  failureReason         String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  refunds Refund[]
+
+  @@index([reservationId])
+  @@index([status])
+}
+
+model Refund {
+  id             String   @id @default(cuid())
+  paymentId      String
+  payment        Payment  @relation(fields: [paymentId], references: [id])
+  stripeRefundId String?  @unique
+  amountCents    Int
+  reason         String?
+  status         String   @default("PENDING")
+  createdAt      DateTime @default(now())
+}
+
+// Raw Stripe webhook events, kept for idempotency + audit trail. Every
+// event id is stored once; a replayed webhook (Stripe retries on timeout)
+// is detected and skipped instead of double-processing a payment.
+model StripeWebhookEvent {
+  id          String   @id // Stripe event id, e.g. evt_...
+  type        String
+  payload     Json
+  processedAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Cancellation policy
+// ---------------------------------------------------------------------------
+
+model CancellationPolicy {
+  id        String   @id @default(cuid())
+  clubId    String
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  name      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tiers CancellationPolicyTier[]
+
+  @@index([clubId, isDefault])
+}
+
+// Ordered tiers, e.g. (>=24h -> 100%), (>=12h -> 50%), (<12h -> 0%).
+// The engine (src/lib/cancellation.ts) picks the tier with the smallest
+// `minHoursBefore` that the reservation still satisfies.
+model CancellationPolicyTier {
+  id               String              @id @default(cuid())
+  policyId         String
+  policy           CancellationPolicy  @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  minHoursBefore   Int
+  refundPercentage Int
+
+  @@index([policyId])
+}
+
+// ---------------------------------------------------------------------------
+// Promotions
+// ---------------------------------------------------------------------------
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model Promotion {
+  id            String       @id @default(cuid())
+  clubId        String
+  club          Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  discountType  DiscountType
+  discountValue Int          // percentage points (0-100) or cents, per discountType
+  sportId       String?
+  sport         Sport?       @relation(fields: [sportId], references: [id])
+  startsAt      DateTime
+  endsAt        DateTime
+  active        Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+
+  promoCodes PromoCode[]
+
+  @@index([clubId, active])
+}
+
+model PromoCode {
+  id              String    @id @default(cuid())
+  promotionId     String
+  promotion       Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  code            String    @unique
+  maxRedemptions  Int?
+  redemptionCount Int       @default(0)
+  active          Boolean   @default(true)
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  reservations Reservation[]
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  RESERVATION_CONFIRMED
+  PAYMENT_CONFIRMED
+  PAYMENT_FAILED
+  RESERVATION_CANCELLED
+  REFUND_ISSUED
+  RESERVATION_REMINDER
+  PASSWORD_RESET
+}
+
+enum NotificationChannel {
+  EMAIL
+  IN_APP
+  PUSH
+}
+
+model Notification {
+  id            String               @id @default(cuid())
+  userId        String
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          NotificationType
+  channel       NotificationChannel  @default(IN_APP)
+  title         String
+  body          String
+  reservationId String?
+  reservation   Reservation?         @relation(fields: [reservationId], references: [id])
+  readAt        DateTime?
+  sentAt        DateTime?
+  createdAt     DateTime             @default(now())
+
+  @@index([userId, readAt])
+}
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+  action      String
+  entityType  String
+  entityId    String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+}
