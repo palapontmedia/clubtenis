@@ -23,7 +23,7 @@ export default async function HomePage() {
 
       <section className="mx-auto -mt-8 w-full max-w-6xl px-4 pb-16 sm:-mt-12">
         <div className="mx-auto max-w-xl">
-          <SearchForm sports={sports} />
+          <SearchForm sports={sports} clubId={club.id} timezone={club.timezone} />
         </div>
       </section>
     </div>

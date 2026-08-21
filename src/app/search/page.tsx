@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { getAvailability } from "@/lib/availability";
 import { getDefaultClub, getSports } from "@/lib/club";
-import { availabilityQuerySchema } from "@/lib/validation/reservations";
+import { availabilityQuerySchema, createReservationSchema } from "@/lib/validation/reservations";
 import { formatDuration, formatMoney } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -42,12 +42,27 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const sport = sports.find((s) => s.id === parsed.data.sportId);
   if (!sport) redirect("/");
 
-  const slots = await getAvailability({
+  // A selected hour (from the search form's "Horas disponibles" picker)
+  // arrives as a plain query param and is never trusted on its own: it only
+  // narrows the results below if it matches an instant that this same,
+  // freshly computed availability list actually contains.
+  let selectedStartsAt: string | undefined;
+  if (typeof params.startsAt === "string") {
+    const startsAtCheck = createReservationSchema.shape.startsAt.safeParse(params.startsAt);
+    if (!startsAtCheck.success) redirect("/");
+    selectedStartsAt = startsAtCheck.data;
+  }
+
+  const allSlots = await getAvailability({
     clubId: parsed.data.clubId,
     sportId: parsed.data.sportId,
     dateKey: parsed.data.date,
     durationMinutes: parsed.data.durationMinutes,
   });
+
+  const slots = selectedStartsAt
+    ? allSlots.filter((slot) => slot.startsAt.toISOString() === new Date(selectedStartsAt!).toISOString())
+    : allSlots;
 
   const groups = new Map<string, typeof slots>();
   for (const slot of slots) {
