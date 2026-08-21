@@ -1,7 +1,7 @@
 import { ReservationStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
-import { computePrice } from "@/lib/pricing";
+import { computePriceFromContext, getPricingContext } from "@/lib/pricing";
 import { getZonedParts, timeStringToMinutes, zonedTimeToUtc } from "@/lib/timezone";
 import { SLOT_STEP_MINUTES } from "@/lib/config";
 
@@ -61,20 +61,39 @@ export async function getAvailability(params: {
 
   const dayOfWeek = getZonedParts(zonedTimeToUtc(dateKey, "12:00", club.timezone), club.timezone).dayOfWeek;
 
-  const openingHours = await prisma.clubOpeningHours.findUnique({
-    where: { clubId_dayOfWeek: { clubId, dayOfWeek } },
-  });
+  // Opening hours and the court list depend on independent inputs (neither
+  // needs the other's result), so fetch them concurrently instead of
+  // back-to-back.
+  const [openingHours, courts] = await Promise.all([
+    prisma.clubOpeningHours.findUnique({ where: { clubId_dayOfWeek: { clubId, dayOfWeek } } }),
+    prisma.court.findMany({
+      where: { clubId, sportId, active: true },
+      select: {
+        id: true,
+        name: true,
+        indoor: true,
+        covered: true,
+        courtTypeId: true,
+        basePriceCents: true,
+        sortOrder: true,
+        courtType: { select: { name: true } },
+      },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
   if (!openingHours || openingHours.closed) return [];
-
-  const courts = await prisma.court.findMany({
-    where: { clubId, sportId, active: true },
-    include: { courtType: true },
-    orderBy: { sortOrder: "asc" },
-  });
   if (courts.length === 0) return [];
   const courtIds = courts.map((c) => c.id);
 
-  await expireStalePendingReservations(courtIds);
+  // Pricing rules/holiday status only depend on (clubId, sportId, dateKey)
+  // — not on which reservations currently block which court — so this can
+  // run alongside the stale-hold sweep instead of after it. The reservation
+  // sweep itself must still finish before the reservations/closures read
+  // below, so a just-expired hold isn't mistaken for a live block.
+  const [, pricingContext] = await Promise.all([
+    expireStalePendingReservations(courtIds),
+    getPricingContext({ clubId, sportId, dateKey, dayOfWeek }),
+  ]);
 
   const dayStart = zonedTimeToUtc(dateKey, "00:00", club.timezone);
   const dayEnd = zonedTimeToUtc(dateKey, "23:59", club.timezone);
@@ -123,15 +142,16 @@ export async function getAvailability(params: {
       const blocked = blockers.some((b) => overlaps(candidate, b));
       if (blocked) continue;
 
-      const price = await computePrice({
-        clubId,
-        sportId,
-        courtTypeId: court.courtTypeId,
-        startsAt,
-        endsAt,
-        fallbackPricePerHourCents: court.basePriceCents,
-        currency: club.currency,
-      });
+      const price = computePriceFromContext(
+        {
+          courtTypeId: court.courtTypeId,
+          startMinutes,
+          durationMinutes,
+          fallbackPricePerHourCents: court.basePriceCents,
+          currency: club.currency,
+        },
+        pricingContext
+      );
 
       slots.push({
         courtId: court.id,
