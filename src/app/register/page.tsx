@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { resolveInternalRedirect } from "@/lib/callback-url";
 
 type FormValues = {
   name: string;
@@ -22,7 +23,20 @@ type FormValues = {
 };
 
 export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Same callback contract as login — registration is just another way to
+  // end up authenticated, so it must return the user to the exact booking
+  // they started, not always to /dashboard.
+  const callbackUrl = resolveInternalRedirect(searchParams.get("callbackUrl"), "/dashboard");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -57,10 +71,10 @@ export default function RegisterPage() {
     setSubmitting(false);
 
     if (result?.error) {
-      router.push("/login");
+      router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
-    router.push("/dashboard");
+    router.push(callbackUrl);
     router.refresh();
   }
 

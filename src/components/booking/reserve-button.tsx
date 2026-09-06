@@ -22,7 +22,19 @@ export function ReserveButton({ clubId, courtId, startsAt, durationMinutes }: Re
 
   async function handleClick() {
     if (status === "unauthenticated") {
-      router.push(`/login?callbackUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      // Send the exact booking the user picked through the login/register
+      // detour, not just the search results they were on: /booking/new
+      // re-validates and creates it server-side once they're back and
+      // authenticated, so there's nothing to re-search for.
+      const bookingIntent = new URLSearchParams({
+        clubId,
+        courtId,
+        startsAt,
+        durationMinutes: String(durationMinutes),
+        back: window.location.pathname + window.location.search,
+      });
+      const destination = `/booking/new?${bookingIntent.toString()}`;
+      router.push(`/login?callbackUrl=${encodeURIComponent(destination)}`);
       return;
     }
 
