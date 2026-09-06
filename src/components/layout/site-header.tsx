@@ -66,23 +66,8 @@ export function SiteHeader() {
     session?.user.role === "ADMIN" ||
     session?.user.role === "SUPER_ADMIN";
 
-  const showAnnounce = pathname === "/";
-
   return (
     <header className="sticky top-0 z-40">
-      {showAnnounce && (
-        <div className="bg-primary text-center text-sm text-primary-foreground">
-          <Container className="py-2.5">
-            <p>
-              🎾🏓 Reserva tu pista de tenis o pádel online, cuando quieras.{" "}
-              <Link href="/#reservar" className="font-semibold underline underline-offset-2">
-                Ver disponibilidad →
-              </Link>
-            </p>
-          </Container>
-        </div>
-      )}
-
       <div className="border-b border-border bg-background/95 backdrop-blur">
         <Container className="flex h-[72px] items-center justify-between gap-6">
           <BrandMark />
