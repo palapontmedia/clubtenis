@@ -112,7 +112,7 @@ export function ReservationCard({ reservation }: { reservation: ReservationCardD
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>¿Cancelar esta reserva?</DialogTitle>
+                <DialogTitle className="font-display text-xl font-normal">¿Cancelar esta reserva?</DialogTitle>
                 <DialogDescription>
                   El reembolso dependerá de la política de cancelación del club según la antelación.
                 </DialogDescription>

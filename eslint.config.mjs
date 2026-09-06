@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Untracked, git-ignored nested copy with its own toolchain — not part
+    // of this project's program.
+    "clubtenis/**",
   ]),
 ]);
 

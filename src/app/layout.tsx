@@ -1,35 +1,51 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 import { Providers } from "@/components/providers";
-import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
+import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fontInter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const fontFraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
+  display: "swap",
+  style: ["normal", "italic"],
+});
+
+const fontJetBrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Rally — Reserva tu pista en segundos",
-  description: "Reserva pistas de pádel y tenis en el Club de Tenis de Oliva.",
+  title: "Club de Tenis de Oliva — Reserva tu pista online",
+  description:
+    "Reserva pistas de tenis y pádel del Club de Tenis de Oliva. Disponibilidad en tiempo real, precios claros y pago seguro.",
+  icons: {
+    icon: "/img/club/logo-club.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang="es"
+      className={`${fontInter.variable} ${fontFraunces.variable} ${fontJetBrainsMono.variable} h-full antialiased`}
+    >
       <body className="flex min-h-full flex-col">
         <Providers>
-          <Navbar />
+          <SiteHeader />
           <main className="flex-1">{children}</main>
-          <Footer />
+          <SiteFooter />
           <Toaster />
         </Providers>
       </body>

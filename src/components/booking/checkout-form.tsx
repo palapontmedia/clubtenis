@@ -18,10 +18,10 @@ export function CheckoutForm({ clientSecret, reservationId }: { clientSecret: st
         appearance: {
           theme: "stripe",
           variables: {
-            colorPrimary: "#163a2e",
-            colorText: "#16211d",
-            borderRadius: "8px",
-            fontFamily: "var(--font-geist-sans), sans-serif",
+            colorPrimary: "#b05a36",
+            colorText: "#2a2b2f",
+            borderRadius: "12px",
+            fontFamily: "var(--font-inter), sans-serif",
           },
         },
       }}

@@ -1,55 +1,37 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* ==========================================================================
+   Club de Tenis de Oliva — visual system
+   Design tokens adapted from the reference site (terracotta / parchment).
+   Names kept identical to Rally's previous tokens so existing utility
+   classes keep working; only the values change. No dark mode: the
+   reference site is light-only.
+   ========================================================================== */
+
 :root {
-  --background: #faf9f6;
-  --foreground: #16211d;
+  --background: #fef9ef;        /* parchment */
+  --foreground: #2a2b2f;        /* ink */
   --surface: #ffffff;
-  --surface-muted: #f2f1ec;
-  --border: #e4e2da;
-  --border-strong: #cfccc0;
+  --surface-muted: #f5eee1;     /* aged paper */
+  --border: #d1c9bf;            /* warm taupe */
+  --border-strong: #c0b6a8;
 
-  --primary: #163a2e;
-  --primary-foreground: #f7fbf5;
-  --accent: #c6ff3d;
-  --accent-foreground: #16211d;
+  --primary: #b05a36;           /* terracotta */
+  --primary-foreground: #fef9ef;
+  --accent: #b05a36;            /* solid terracotta — same as primary */
+  --accent-foreground: #fef9ef;
 
-  --muted: #6f7266;
-  --muted-foreground: #8b8d81;
+  --muted: #808988;
+  --muted-foreground: #515151;  /* graphite */
 
   --success: #1c7c4d;
   --warning: #b45309;
   --destructive: #b3261e;
   --destructive-foreground: #fff5f4;
 
-  --ring: #163a2e;
-  --radius: 0.75rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0e1512;
-    --foreground: #eef1ec;
-    --surface: #141d19;
-    --surface-muted: #1a2420;
-    --border: #263029;
-    --border-strong: #344036;
-
-    --primary: #c6ff3d;
-    --primary-foreground: #101a14;
-    --accent: #c6ff3d;
-    --accent-foreground: #101a14;
-
-    --muted: #a8ac9e;
-    --muted-foreground: #7d8175;
-
-    --success: #4ade80;
-    --warning: #f59e0b;
-    --destructive: #f87171;
-    --destructive-foreground: #2a0a08;
-
-    --ring: #c6ff3d;
-  }
+  --ring: #b05a36;
+  --radius: 1.5rem;             /* 24px — card radius from the reference */
 }
 
 @theme inline {
@@ -74,19 +56,61 @@
   --color-destructive-foreground: var(--destructive-foreground);
 
   --color-ring: var(--ring);
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 0.25rem);
-  --radius-sm: calc(var(--radius) - 0.4rem);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --radius-lg: var(--radius);
+  --radius-md: 0.75rem;
+  --radius-sm: 0.5rem;
+
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-fraunces);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  letter-spacing: -0.37px;
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
   border-color: var(--border);
+}
+
+/* ==========================================================================
+   Shared typography helpers (mirrors the reference's .eyebrow / .h2 / lead)
+   ========================================================================== */
+
+.eyebrow {
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.display-em em {
+  font-style: italic;
+  font-weight: 300;
+}
+
+/* ==========================================================================
+   Scroll reveal — opt-in, and a no-op when the user prefers reduced motion
+   ========================================================================== */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }

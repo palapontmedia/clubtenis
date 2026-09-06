@@ -137,28 +137,27 @@ export function SearchForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-5 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6"
+      className="grid gap-5 rounded-lg border border-border bg-surface p-6 shadow-sm sm:p-8"
     >
-      <div className="grid gap-2">
-        <Label>¿Qué quieres jugar?</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {sports.map((sport) => (
-            <button
-              type="button"
-              key={sport.id}
-              onClick={() => setSportId(sport.id)}
-              className={cn(
-                "flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors",
-                sportId === sport.id
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border-strong bg-transparent text-foreground hover:bg-surface-muted"
-              )}
-            >
-              <span aria-hidden>{sport.icon ?? "🎾"}</span>
-              {sport.name}
-            </button>
-          ))}
-        </div>
+      <div className="flex w-fit gap-1 rounded-full border border-border bg-surface-muted p-1">
+        {sports.map((sport) => (
+          <button
+            type="button"
+            key={sport.id}
+            onClick={() => setSportId(sport.id)}
+            role="tab"
+            aria-selected={sportId === sport.id}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors",
+              sportId === sport.id
+                ? "bg-primary text-primary-foreground"
+                : "text-foreground/70 hover:text-foreground"
+            )}
+          >
+            <span aria-hidden>{sport.icon ?? "🎾"}</span>
+            {sport.name}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

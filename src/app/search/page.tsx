@@ -8,6 +8,9 @@ import { availabilityQuerySchema, createReservationSchema } from "@/lib/validati
 import { formatDuration, formatMoney } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Container } from "@/components/layout/container";
+import { Eyebrow } from "@/components/ui/typography";
+import { AvailabilityLegend } from "@/components/booking/availability-legend";
 import { ReserveButton } from "@/components/booking/reserve-button";
 
 export const dynamic = "force-dynamic";
@@ -75,13 +78,19 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const referenceDate = new Date(`${parsed.data.date}T12:00:00`);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <Link href="/" className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+    <Container className="max-w-3xl py-10 sm:py-14">
+      <Link
+        href="/"
+        className="mb-6 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted"
+      >
         <ArrowLeft className="h-4 w-4" /> Cambiar búsqueda
       </Link>
 
-      <h1 className="text-2xl font-semibold tracking-tight">Pistas disponibles</h1>
-      <div className="mt-1 flex flex-wrap gap-2 text-sm text-muted-foreground">
+      <Eyebrow className="mb-3">Reservas</Eyebrow>
+      <h1 className="display-em font-display text-3xl font-normal leading-tight text-foreground sm:text-[38px]">
+        Pistas <em>disponibles</em>
+      </h1>
+      <div className="mt-2 flex flex-wrap gap-2 text-sm text-muted-foreground">
         <span>
           {sport.icon} {sport.name}
         </span>
@@ -91,20 +100,27 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <span>{formatDuration(parsed.data.durationMinutes)}</span>
       </div>
 
-      <div className="mt-8 space-y-6">
+      {groups.size > 0 && <AvailabilityLegend className="mt-6" />}
+
+      <div className="mt-8 space-y-8">
         {groups.size === 0 && (
-          <Card className="p-8 text-center">
-            <p className="font-medium">No hay pistas disponibles</p>
+          <Card className="bg-surface-muted p-10 text-center">
+            <p className="font-display text-xl">No hay pistas disponibles</p>
             <p className="mt-1 text-sm text-muted-foreground">Prueba con otra hora o fecha.</p>
           </Card>
         )}
 
         {[...groups.entries()].map(([iso, courtsAtTime]) => (
           <div key={iso}>
-            <h2 className="mb-2 text-sm font-semibold text-muted-foreground">{formatTimeLabel(new Date(iso))}</h2>
+            <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
+              {formatTimeLabel(new Date(iso))}
+            </h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {courtsAtTime.map((slot) => (
-                <Card key={slot.courtId} className="flex items-center justify-between gap-3 p-4">
+                <Card
+                  key={slot.courtId}
+                  className="flex items-center justify-between gap-3 bg-surface-muted p-4"
+                >
                   <div className="min-w-0">
                     <p className="truncate font-medium">{slot.courtName}</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
@@ -117,7 +133,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                         {slot.courtIndoor ? "Indoor" : "Outdoor"}
                       </Badge>
                     </div>
-                    <p className="mt-2 text-sm font-semibold">{formatMoney(slot.priceCents, slot.currency)}</p>
+                    <p className="mt-2 text-sm font-semibold">
+                      {formatMoney(slot.priceCents, slot.currency)}
+                    </p>
                   </div>
                   <ReserveButton
                     clubId={club.id}
@@ -131,6 +149,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </div>
         ))}
       </div>
-    </div>
+    </Container>
   );
 }

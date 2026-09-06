@@ -54,6 +54,24 @@ describe("createPendingReservation", () => {
     ).rejects.toThrow(AppError);
   });
 
+  it("rejects a sequential booking attempt on an already-taken slot with SLOT_TAKEN", async () => {
+    // This is the case the /booking/new hand-off page (reached after an
+    // anonymous user logs in or registers) depends on: by the time the
+    // user comes back authenticated, someone else may have already booked
+    // the slot they picked. createPendingReservation() must re-validate
+    // and reject it with a clear, user-facing error — never silently
+    // succeed on stale availability.
+    const dateKey = nextWeekdayDateKey();
+    const startsAt = zonedTimeToUtc(dateKey, "16:00", fixture.club.timezone);
+    const endsAt = zonedTimeToUtc(dateKey, "17:00", fixture.club.timezone);
+
+    await createPendingReservation({ createdById: userA.id, clubId: fixture.club.id, courtId: fixture.court.id, startsAt, endsAt });
+
+    await expect(
+      createPendingReservation({ createdById: userB.id, clubId: fixture.club.id, courtId: fixture.court.id, startsAt, endsAt })
+    ).rejects.toMatchObject({ code: "SLOT_TAKEN", status: 409 });
+  });
+
   it("never allows two concurrent bookings to double-book the same slot", async () => {
     const dateKey = nextWeekdayDateKey();
     const startsAt = zonedTimeToUtc(dateKey, "14:00", fixture.club.timezone);

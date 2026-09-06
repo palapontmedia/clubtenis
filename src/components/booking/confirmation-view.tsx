@@ -62,7 +62,9 @@ export function ConfirmationView({ initialReservation }: { initialReservation: R
     return (
       <div className="mx-auto max-w-lg px-4 py-12 text-center">
         <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">¡Reserva confirmada!</h1>
+        <h1 className="display-em mt-4 font-display text-3xl font-normal tracking-tight">
+          ¡Reserva <em>confirmada</em>!
+        </h1>
         <p className="mt-1 text-muted-foreground">Te esperamos en la pista. Hemos enviado la confirmación a tu email.</p>
 
         <Card className="mt-6 text-left">
@@ -103,7 +105,7 @@ export function ConfirmationView({ initialReservation }: { initialReservation: R
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
-        <h1 className="mt-4 text-xl font-semibold">Confirmando tu pago…</h1>
+        <h1 className="mt-4 font-display text-xl font-normal">Confirmando tu pago…</h1>
         <p className="mt-1 text-muted-foreground">Esto solo tomará unos segundos.</p>
       </div>
     );
@@ -112,7 +114,7 @@ export function ConfirmationView({ initialReservation }: { initialReservation: R
   return (
     <div className="mx-auto max-w-lg px-4 py-16 text-center">
       <XCircle className="mx-auto h-12 w-12 text-destructive" />
-      <h1 className="mt-4 text-xl font-semibold">No hemos podido confirmar el pago</h1>
+      <h1 className="mt-4 font-display text-xl font-normal">No hemos podido confirmar el pago</h1>
       <p className="mt-1 text-muted-foreground">
         Si se te ha cobrado, recibirás un reembolso automático. Vuelve a intentarlo cuando quieras.
       </p>

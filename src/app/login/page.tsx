@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { resolveInternalRedirect } from "@/lib/callback-url";
 
 const schema = z.object({
   email: z.string().email("Email inválido"),
@@ -31,14 +32,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const requestedCallbackUrl = searchParams.get("callbackUrl");
-  // Only ever redirect to an internal path — a callbackUrl pointing at an
-  // external origin (e.g. "https://evil.example" or "//evil.example") must
-  // never be honored, or login becomes an open-redirect gadget.
-  const callbackUrl =
-    requestedCallbackUrl && requestedCallbackUrl.startsWith("/") && !requestedCallbackUrl.startsWith("//")
-      ? requestedCallbackUrl
-      : "/dashboard";
+  const callbackUrl = resolveInternalRedirect(searchParams.get("callbackUrl"), "/dashboard");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -63,10 +57,10 @@ function LoginForm() {
   }
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col justify-center px-4 py-16">
-      <Card>
+    <div className="mx-auto flex max-w-sm flex-col justify-center px-6 py-16 sm:py-24">
+      <Card className="bg-surface-muted">
         <CardHeader>
-          <CardTitle>Iniciar sesión</CardTitle>
+          <CardTitle className="font-display text-2xl font-normal">Iniciar sesión</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
