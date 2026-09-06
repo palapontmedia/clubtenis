@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getDefaultClub } from "@/lib/club";
+import { requireStaffOrRedirect } from "@/lib/auth-guards";
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -15,6 +16,11 @@ function startOfWeek(d: Date) {
 }
 
 export async function getDashboardMetrics() {
+  // Defence in depth: the /admin layout already gates staff, but this
+  // function reads club-wide operational data and must never run for a
+  // non-staff caller regardless of where it's invoked from.
+  await requireStaffOrRedirect();
+
   const club = await getDefaultClub();
   const now = new Date();
   const todayStart = startOfDay(now);

@@ -20,7 +20,6 @@ export const createReservationSchema = z.object({
   }),
   promoCode: z.string().trim().min(1).optional(),
   notes: z.string().trim().max(500).optional(),
-  participantUserIds: z.array(z.string()).max(8).optional(),
 });
 
 export const cancelReservationSchema = z.object({

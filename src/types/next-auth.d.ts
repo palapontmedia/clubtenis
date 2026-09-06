@@ -19,5 +19,7 @@ declare module "@auth/core/jwt" {
     id: string;
     role: Role;
     roleCheckedAt: number;
+    /** Epoch ms of the sign-in that minted this token. Set once, never rotated. */
+    loginAt: number;
   }
 }

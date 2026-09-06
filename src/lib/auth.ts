@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
+import { isSessionStillValid } from "@/lib/session-validity";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -57,18 +58,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id as string;
         token.role = user.role;
         token.roleCheckedAt = Date.now();
+        token.loginAt = Date.now();
         return token;
       }
 
-      // Re-read the role from the DB periodically so a role change (e.g. an
-      // admin demoted after being compromised/offboarded) takes effect
-      // without waiting for the JWT to expire, instead of trusting the
-      // role baked into the token at login forever.
+      // Tokens minted before loginAt existed: anchor it once so the
+      // revocation check below has a stable reference. Anchoring to "now"
+      // means a pre-existing session is only revoked by a cutoff set from
+      // here on (password reset / role change), never retroactively.
+      if (typeof token.loginAt !== "number") token.loginAt = Date.now();
+
+      // Re-read the role + session-revocation cutoff from the DB
+      // periodically (same cadence, one extra column — no per-request
+      // query) so a role change or a password reset takes effect without
+      // waiting for the JWT to expire, instead of trusting the token
+      // forever. This is the source of truth across every instance.
       const checkedAt = typeof token.roleCheckedAt === "number" ? token.roleCheckedAt : 0;
       const stale = Date.now() - checkedAt > 5 * 60_000;
       if (trigger === "update" || stale) {
-        const current = await prisma.user.findUnique({ where: { id: token.id as string }, select: { role: true } });
-        if (current) token.role = current.role;
+        const current = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true, sessionsValidFrom: true },
+        });
+        // User deleted, or this session predates the user's revocation
+        // cutoff (password reset / role change): returning null drops the
+        // session and forces a fresh login.
+        if (!current) return null;
+        if (!isSessionStillValid(token.loginAt, current.sessionsValidFrom)) return null;
+        token.role = current.role;
         token.roleCheckedAt = Date.now();
       }
       return token;

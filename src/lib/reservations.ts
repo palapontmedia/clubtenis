@@ -2,7 +2,7 @@ import { Prisma, ReservationStatus } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { computePrice } from "@/lib/pricing";
-import { isCourtWindowFree } from "@/lib/availability";
+import { assertBookableWindow, isCourtWindowFree } from "@/lib/availability";
 import { computeRefundPercentage, getDefaultCancellationPolicy } from "@/lib/cancellation";
 import { AppError } from "@/lib/errors";
 import { RESERVATION_HOLD_MINUTES } from "@/lib/config";
@@ -46,6 +46,12 @@ export async function createPendingReservation(input: CreatePendingReservationIn
   if (!court || court.clubId !== clubId || !court.active) {
     throw new AppError("Pista no disponible.", 404, "COURT_NOT_FOUND");
   }
+
+  // The client picks startsAt/duration from getAvailability()'s output, but
+  // nothing stops it POSTing an arbitrary instant. Re-enforce the same
+  // opening-hours / slot-grid / duration invariants server-side before we
+  // hold the court.
+  await assertBookableWindow({ clubId, timezone: court.club.timezone, startsAt, endsAt });
 
   const free = await isCourtWindowFree(courtId, startsAt, endsAt);
   if (!free) {
@@ -172,10 +178,13 @@ async function validateAndPricePromoCode(
     throw new AppError("Código promocional no válido.", 422, "INVALID_PROMO_CODE");
   }
 
-  const discountCents =
+  const rawDiscountCents =
     promo.promotion.discountType === "PERCENTAGE"
       ? Math.round((priceCents * promo.promotion.discountValue) / 100)
-      : Math.min(promo.promotion.discountValue, priceCents);
+      : promo.promotion.discountValue;
+  // A discount can never exceed the price or go negative, whatever a
+  // misconfigured promotion says — the total is always in [0, priceCents].
+  const discountCents = Math.max(0, Math.min(priceCents, rawDiscountCents));
 
   return { discountCents, promoCodeId: promo.id, maxRedemptions: promo.maxRedemptions };
 }
@@ -258,8 +267,13 @@ export async function cancelReservation(input: CancelReservationInput): Promise<
 
   const refundCents = successfulPayment ? Math.round((successfulPayment.amountCents * refundPercentage) / 100) : 0;
 
-  await prisma.reservation.update({
-    where: { id: reservationId },
+  // Conditional transition: only flip the reservation if it is still in a
+  // cancellable state. Two concurrent cancels (double-click, or staff +
+  // owner at once) would otherwise both read CONFIRMED, both compute a
+  // refund, and both hand a refund amount back to the caller — so the
+  // loser must fail here instead of proceeding to refundPayment().
+  const transition = await prisma.reservation.updateMany({
+    where: { id: reservationId, status: { in: cancellableStatuses } },
     data: {
       status: ReservationStatus.CANCELLED,
       cancelledAt: new Date(),
@@ -268,6 +282,9 @@ export async function cancelReservation(input: CancelReservationInput): Promise<
       refundPercentage,
     },
   });
+  if (transition.count === 0) {
+    throw new AppError("Esta reserva ya no se puede cancelar.", 422, "NOT_CANCELLABLE");
+  }
 
   await logAudit({
     actorUserId: actingUserId,

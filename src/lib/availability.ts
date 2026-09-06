@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { computePriceFromContext, getPricingContext } from "@/lib/pricing";
 import { getZonedParts, timeStringToMinutes, zonedTimeToUtc } from "@/lib/timezone";
 import { SLOT_STEP_MINUTES } from "@/lib/config";
+import { AppError } from "@/lib/errors";
+import { ALLOWED_DURATIONS_MINUTES } from "@/lib/validation/reservations";
 
 const BLOCKING_STATUSES: ReservationStatus[] = [
   ReservationStatus.PENDING_PAYMENT,
@@ -175,6 +177,62 @@ function minutesToHHMM(minutes: number): string {
   const h = Math.floor(minutes / 60).toString().padStart(2, "0");
   const m = (minutes % 60).toString().padStart(2, "0");
   return `${h}:${m}`;
+}
+
+/**
+ * Server-side guard that a requested booking window is one the public
+ * booking flow is actually allowed to create: an allowed duration, inside
+ * the club's opening hours for that day, aligned to the same slot grid
+ * getAvailability() offers, and finishing before closing. getAvailability()
+ * already enforces all of this for the search UI, but the write path
+ * (createPendingReservation) must re-check it independently — the client
+ * controls `startsAt`/`durationMinutes` and could otherwise POST a 3am,
+ * off-grid, or run-past-closing booking that no slot list would ever have
+ * shown, blocking real slots for the price of an unpaid hold.
+ *
+ * Deliberately NOT applied to staff-created manual bookings, which are
+ * allowed off-grid / out-of-hours by design.
+ */
+export async function assertBookableWindow(params: {
+  clubId: string;
+  timezone: string;
+  startsAt: Date;
+  endsAt: Date;
+}): Promise<void> {
+  const { clubId, timezone, startsAt, endsAt } = params;
+
+  const durationMinutes = Math.round((endsAt.getTime() - startsAt.getTime()) / 60_000);
+  if (!(ALLOWED_DURATIONS_MINUTES as readonly number[]).includes(durationMinutes)) {
+    throw new AppError("Duración de reserva no válida.", 422, "INVALID_DURATION");
+  }
+
+  const start = getZonedParts(startsAt, timezone);
+
+  const openingHours = await prisma.clubOpeningHours.findUnique({
+    where: { clubId_dayOfWeek: { clubId, dayOfWeek: start.dayOfWeek } },
+  });
+  if (!openingHours || openingHours.closed) {
+    throw new AppError("El club está cerrado ese día.", 422, "CLUB_CLOSED");
+  }
+
+  const openMinutes = timeStringToMinutes(openingHours.opensAt);
+  const closeMinutes = timeStringToMinutes(openingHours.closesAt);
+  const startMinutes = start.minutesSinceMidnight;
+
+  // Exactly the acceptance criteria of getAvailability()'s slot loop:
+  // start on/after opening, aligned to the grid measured from opening,
+  // and the whole window fits before closing.
+  const onGrid =
+    startMinutes >= openMinutes && (startMinutes - openMinutes) % SLOT_STEP_MINUTES === 0;
+  const fitsBeforeClose = startMinutes + durationMinutes <= closeMinutes;
+
+  if (!onGrid || !fitsBeforeClose) {
+    throw new AppError(
+      "Esa franja horaria no está disponible para reservar.",
+      422,
+      "OUTSIDE_BOOKING_HOURS"
+    );
+  }
 }
 
 /**

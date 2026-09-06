@@ -41,6 +41,12 @@ export async function POST(request: NextRequest) {
     const startsAt = new Date(body.startsAt);
     const endsAt = new Date(startsAt.getTime() + body.durationMinutes * 60_000);
 
+    // Participants are intentionally NOT accepted from the client: there is
+    // no invitation/consent flow, so letting a caller attach arbitrary
+    // userIds would grant those users read access to this reservation
+    // (GET /api/reservations/[id]) and expose co-participants' names
+    // without their agreement. The creator is added as the sole
+    // participant inside createPendingReservation().
     const reservation = await createPendingReservation({
       createdById: user.id,
       clubId: body.clubId,
@@ -50,15 +56,6 @@ export async function POST(request: NextRequest) {
       promoCode: body.promoCode,
       notes: body.notes,
     });
-
-    if (body.participantUserIds?.length) {
-      await prisma.reservationParticipant.createMany({
-        data: body.participantUserIds
-          .filter((id) => id !== user.id)
-          .map((userId) => ({ reservationId: reservation.id, userId })),
-        skipDuplicates: true,
-      });
-    }
 
     return NextResponse.json({ reservation }, { status: 201 });
   } catch (error) {

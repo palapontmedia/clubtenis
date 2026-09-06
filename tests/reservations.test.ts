@@ -54,6 +54,40 @@ describe("createPendingReservation", () => {
     ).rejects.toThrow(AppError);
   });
 
+  // SEC-01: the write path must enforce the same opening-hours / slot-grid
+  // invariants getAvailability() applies, so a crafted POST can't create an
+  // out-of-hours, off-grid or run-past-closing hold the search UI would
+  // never have offered. Fixture club opens 08:00-22:00 every day.
+  it("rejects a booking that starts before opening hours", async () => {
+    const dateKey = nextWeekdayDateKey();
+    const startsAt = zonedTimeToUtc(dateKey, "06:00", fixture.club.timezone);
+    const endsAt = zonedTimeToUtc(dateKey, "07:00", fixture.club.timezone);
+
+    await expect(
+      createPendingReservation({ createdById: userA.id, clubId: fixture.club.id, courtId: fixture.court.id, startsAt, endsAt })
+    ).rejects.toMatchObject({ code: "OUTSIDE_BOOKING_HOURS", status: 422 });
+  });
+
+  it("rejects a booking that runs past closing time", async () => {
+    const dateKey = nextWeekdayDateKey();
+    const startsAt = zonedTimeToUtc(dateKey, "21:30", fixture.club.timezone); // +90m -> 23:00, club closes 22:00
+    const endsAt = zonedTimeToUtc(dateKey, "23:00", fixture.club.timezone);
+
+    await expect(
+      createPendingReservation({ createdById: userA.id, clubId: fixture.club.id, courtId: fixture.court.id, startsAt, endsAt })
+    ).rejects.toMatchObject({ code: "OUTSIDE_BOOKING_HOURS", status: 422 });
+  });
+
+  it("rejects a booking not aligned to the 30-minute slot grid", async () => {
+    const dateKey = nextWeekdayDateKey();
+    const startsAt = zonedTimeToUtc(dateKey, "10:07", fixture.club.timezone);
+    const endsAt = zonedTimeToUtc(dateKey, "11:07", fixture.club.timezone);
+
+    await expect(
+      createPendingReservation({ createdById: userA.id, clubId: fixture.club.id, courtId: fixture.court.id, startsAt, endsAt })
+    ).rejects.toMatchObject({ code: "OUTSIDE_BOOKING_HOURS", status: 422 });
+  });
+
   it("rejects a sequential booking attempt on an already-taken slot with SLOT_TAKEN", async () => {
     // This is the case the /booking/new hand-off page (reached after an
     // anonymous user logs in or registers) depends on: by the time the
@@ -197,5 +231,28 @@ describe("cancelReservation", () => {
     await expect(
       cancelReservation({ reservationId: reservation.id, actingUserId: owner.id, isStaff: false })
     ).rejects.toThrow(AppError);
+  });
+
+  // SEC-04: two concurrent cancels must not both proceed to a refund. Only
+  // the one that wins the conditional status transition returns a refund
+  // amount; the other fails with NOT_CANCELLABLE.
+  it("lets only one of two concurrent cancels perform the cancellation", async () => {
+    const reservation = await makeConfirmedReservation(48);
+
+    const [a, b] = await Promise.allSettled([
+      cancelReservation({ reservationId: reservation.id, actingUserId: owner.id, isStaff: false }),
+      cancelReservation({ reservationId: reservation.id, actingUserId: owner.id, isStaff: false }),
+    ]);
+
+    const fulfilled = [a, b].filter((r) => r.status === "fulfilled");
+    const rejected = [a, b].filter((r) => r.status === "rejected");
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    if (fulfilled[0]?.status === "fulfilled") {
+      expect(fulfilled[0].value.refundCents).toBe(2000);
+    }
+
+    const row = await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } });
+    expect(row.status).toBe(ReservationStatus.CANCELLED);
   });
 });

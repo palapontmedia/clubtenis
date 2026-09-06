@@ -47,6 +47,10 @@ model User {
   avatarUrl         String?
   role              Role      @default(PLAYER)
   emailVerifiedAt   DateTime?
+  // Any JWT session issued before this instant is rejected by the auth
+  // jwt callback. Bumped on password reset and on role change so those
+  // actions revoke existing sessions instead of trusting a token forever.
+  sessionsValidFrom DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

@@ -33,7 +33,13 @@ export async function updateUserRole(formData: FormData) {
     throw new AppError("Solo un super administrador puede gestionar roles de administración.", 403, "FORBIDDEN");
   }
 
-  await prisma.user.update({ where: { id: data.userId }, data: { role: data.role } });
+  // A role change (elevation or, more importantly, degradation of a
+  // compromised/offboarded admin) revokes the target's existing sessions
+  // so a stale JWT can't keep acting with the old privileges.
+  await prisma.user.update({
+    where: { id: data.userId },
+    data: { role: data.role, sessionsValidFrom: new Date() },
+  });
   await logAudit({
     actorUserId: actor.id,
     action: "USER_ROLE_UPDATED",

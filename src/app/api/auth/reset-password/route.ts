@@ -26,7 +26,13 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(body.password, 12);
 
     await prisma.$transaction([
-      prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
+      // Bump the session cutoff so every JWT issued before this reset —
+      // including one held by whoever the user is resetting against — stops
+      // being accepted.
+      prisma.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash, sessionsValidFrom: new Date() },
+      }),
       prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
     ]);
 

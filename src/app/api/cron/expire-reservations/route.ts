@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 
 import { expireStalePendingReservations } from "@/lib/availability";
+
+/** Constant-time comparison so a forged token can't be recovered byte-by-byte via response timing. */
+function tokenMatches(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 /**
  * Global backstop sweep for stale PENDING_PAYMENT holds. The read-path
@@ -16,8 +24,8 @@ async function handleExpireSweep(request: NextRequest) {
   if (!secret) {
     return NextResponse.json({ error: "CRON_SECRET no está configurada." }, { status: 500 });
   }
-  const provided = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (provided !== secret) {
+  const provided = request.headers.get("authorization")?.replace("Bearer ", "") ?? "";
+  if (!tokenMatches(provided, secret)) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
 

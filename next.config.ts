@@ -31,6 +31,10 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
           { key: "Content-Security-Policy", value: contentSecurityPolicy },
+          // Vercel already sends HSTS for its domains; set it explicitly so
+          // the guarantee holds on any host. Ignored by browsers over plain
+          // HTTP / on localhost, so it's safe in dev.
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
         ],
       },
     ];
