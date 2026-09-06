@@ -33,20 +33,32 @@ interface SectionHeadProps {
   eyebrow?: React.ReactNode;
   title?: React.ReactNode;
   lead?: React.ReactNode;
+  /** Center the block and its text instead of the default left alignment. */
+  centered?: boolean;
   className?: string;
 }
 
 /** `.section__head` — eyebrow + display heading (with optional italic <em>) + lead. */
-export function SectionHead({ eyebrow, title, lead, className }: SectionHeadProps) {
+export function SectionHead({ eyebrow, title, lead, centered = false, className }: SectionHeadProps) {
   return (
-    <div className={cn("mb-10 max-w-[640px] sm:mb-14", className)}>
+    <div
+      className={cn(
+        "mb-10 max-w-[640px] sm:mb-14",
+        centered && "mx-auto text-center",
+        className
+      )}
+    >
       {eyebrow ? <p className="eyebrow mb-4">{eyebrow}</p> : null}
       {title ? (
         <h2 className="display-em font-display text-3xl font-normal leading-[1.1] text-foreground sm:text-[45px]">
           {title}
         </h2>
       ) : null}
-      {lead ? <p className="mt-4 max-w-[560px] text-lg text-foreground/80">{lead}</p> : null}
+      {lead ? (
+        <p className={cn("mt-4 max-w-[560px] text-lg text-foreground/80", centered && "mx-auto")}>
+          {lead}
+        </p>
+      ) : null}
     </div>
   );
 }
