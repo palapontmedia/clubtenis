@@ -7,6 +7,10 @@ describe("resolveInternalRedirect", () => {
     expect(resolveInternalRedirect("/dashboard", "/")).toBe("/dashboard");
   });
 
+  it("accepts an internal path with a query string", () => {
+    expect(resolveInternalRedirect("/booking/new?foo=bar", "/")).toBe("/booking/new?foo=bar");
+  });
+
   it("preserves the exact booking hand-off URL the login/register flow relies on", () => {
     // This is the literal shape ReserveButton builds when an anonymous
     // user clicks "Reservar pista": the login/register detour must return
@@ -23,6 +27,14 @@ describe("resolveInternalRedirect", () => {
 
   it("rejects a protocol-relative URL (the classic //host open-redirect bypass)", () => {
     expect(resolveInternalRedirect("//evil.example", "/dashboard")).toBe("/dashboard");
+  });
+
+  it("rejects the backslash bypass (/\\host) that some browsers normalize to //host", () => {
+    expect(resolveInternalRedirect("/\\evil.example", "/dashboard")).toBe("/dashboard");
+  });
+
+  it("rejects the mixed slash-backslash bypass (/\\/host)", () => {
+    expect(resolveInternalRedirect("/\\/evil.example", "/dashboard")).toBe("/dashboard");
   });
 
   it("rejects a javascript: pseudo-protocol value", () => {
