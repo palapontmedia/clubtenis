@@ -9,16 +9,7 @@ export default async function HomePage() {
 
   return (
     <Section>
-      <SectionHead
-        centered
-        eyebrow={club.name}
-        title={
-          <>
-            Reserva tu pista <em>en segundos</em>
-          </>
-        }
-        lead="Disponibilidad en tiempo real, precios claros y pago seguro. Elige deporte, fecha y hora — el resto es jugar."
-      />
+      <SectionHead centered eyebrow={club.name} />
       <div className="mx-auto max-w-xl">
         <SearchForm sports={sports} clubId={club.id} timezone={club.timezone} />
       </div>
