@@ -57,10 +57,10 @@ function LoginForm() {
   }
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col justify-center px-4 py-16">
-      <Card>
+    <div className="mx-auto flex max-w-sm flex-col justify-center px-6 py-16 sm:py-24">
+      <Card className="bg-surface-muted">
         <CardHeader>
-          <CardTitle>Iniciar sesión</CardTitle>
+          <CardTitle className="font-display text-2xl font-normal">Iniciar sesión</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>

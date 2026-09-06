@@ -36,8 +36,8 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
   }
   if (reservation.status !== "PENDING_PAYMENT") {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <h1 className="text-xl font-semibold">Esta reserva ya no está disponible</h1>
+      <div className="mx-auto max-w-lg px-6 py-16 text-center sm:py-24">
+        <h1 className="display-em font-display text-2xl font-normal">Esta reserva ya no está disponible</h1>
         <p className="mt-2 text-muted-foreground">
           La franja horaria ha expirado o ha sido cancelada. Vuelve a buscar pista.
         </p>
@@ -46,8 +46,8 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
   }
   if (reservation.expiresAt && reservation.expiresAt < new Date()) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <h1 className="text-xl font-semibold">La reserva ha expirado</h1>
+      <div className="mx-auto max-w-lg px-6 py-16 text-center sm:py-24">
+        <h1 className="display-em font-display text-2xl font-normal">La reserva ha expirado</h1>
         <p className="mt-2 text-muted-foreground">El tiempo para completar el pago ha finalizado.</p>
       </div>
     );
@@ -67,8 +67,10 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Confirma tu reserva</h1>
+    <div className="mx-auto max-w-lg px-6 py-10 sm:py-14">
+      <h1 className="display-em font-display text-3xl font-normal tracking-tight">
+        Confirma tu <em>reserva</em>
+      </h1>
       {reservation.expiresAt && <div className="mt-2"><HoldCountdown expiresAt={reservation.expiresAt.toISOString()} /></div>}
 
       <Card className="mt-6">

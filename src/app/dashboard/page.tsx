@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireUserOrRedirect } from "@/lib/auth-guards";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Container } from "@/components/layout/container";
+import { PageHeading } from "@/components/ui/typography";
 import { ReservationCard } from "@/components/booking/reservation-card";
 
 export const dynamic = "force-dynamic";
@@ -27,18 +29,18 @@ export default async function DashboardPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Hola, {user.name?.split(" ")[0] ?? "jugador"}</h1>
+    <Container className="max-w-3xl py-10 sm:py-14">
+      <div className="flex items-center justify-between gap-4">
+        <PageHeading>
+          Hola, <em>{user.name?.split(" ")[0] ?? "jugador"}</em>
+        </PageHeading>
         <Button asChild variant="accent">
           <Link href="/">Reservar pista</Link>
         </Button>
       </div>
 
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Próximas reservas
-        </h2>
+      <section className="mt-10">
+        <h2 className="eyebrow mb-3">Próximas reservas</h2>
         {nextReservations.length === 0 ? (
           <Card className="p-8 text-center text-sm text-muted-foreground">
             No tienes reservas próximas.{" "}
@@ -69,9 +71,9 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      <section className="mt-8">
+      <section className="mt-10">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Historial reciente</h2>
+          <h2 className="eyebrow">Historial reciente</h2>
           <Link href="/reservations" className="text-sm font-medium text-foreground hover:underline">
             Ver todo
           </Link>
@@ -99,6 +101,6 @@ export default async function DashboardPage() {
           </div>
         )}
       </section>
-    </div>
+    </Container>
   );
 }

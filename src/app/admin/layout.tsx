@@ -56,7 +56,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link
               key={section.href}
               href={section.href}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-muted hover:text-primary"
             >
               <section.icon className="h-4 w-4" />
               {section.label}

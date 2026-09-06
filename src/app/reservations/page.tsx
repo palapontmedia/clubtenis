@@ -1,15 +1,19 @@
 import { requireUserOrRedirect } from "@/lib/auth-guards";
+import { Container } from "@/components/layout/container";
+import { PageHeading } from "@/components/ui/typography";
 import { ReservationsList } from "@/components/booking/reservations-list";
 
 export default async function ReservationsPage() {
   await requireUserOrRedirect("/reservations");
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Mis reservas</h1>
-      <div className="mt-6">
+    <Container className="max-w-3xl py-10 sm:py-14">
+      <PageHeading>
+        Mis <em>reservas</em>
+      </PageHeading>
+      <div className="mt-8">
         <ReservationsList />
       </div>
-    </div>
+    </Container>
   );
 }

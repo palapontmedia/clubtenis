@@ -79,10 +79,10 @@ function RegisterForm() {
   }
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col justify-center px-4 py-16">
-      <Card>
+    <div className="mx-auto flex max-w-sm flex-col justify-center px-6 py-16 sm:py-24">
+      <Card className="bg-surface-muted">
         <CardHeader>
-          <CardTitle>Crear cuenta</CardTitle>
+          <CardTitle className="font-display text-2xl font-normal">Crear cuenta</CardTitle>
           <CardDescription>Regístrate para reservar pistas en segundos.</CardDescription>
         </CardHeader>
         <CardContent>
